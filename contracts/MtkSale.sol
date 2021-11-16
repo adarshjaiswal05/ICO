@@ -1,23 +1,25 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.6.0 ;
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v3.0.0/contracts/math/SafeMath.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v3.0.0/contracts/access/Ownable.sol";
-import "myTok.sol";
+pragma solidity >=0.5.0 ;
+// import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v3.0.0/contracts/math/SafeMath.sol";
+// import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/release-v3.0.0/contracts/access/Ownable.sol";
+//import "Ownerable.sol";
+ import "myTok.sol";
 contract crowdSale{
     using SafeMath for uint256;
     uint256 public rate_1 = 454505;
     uint256 public rate_2 = 227252;
     uint256 public rate_3 = 70701;
-    uint256 public limitTireOne = (30*10 **6)(10**token.decimals());
-    uint256 public limitTireTwo = (50*10**6)(10**token.decimals());
-    uint256 public limitTireThree = (20*10**6)(10**token.decimals());
+    ICOToken public token;
+    uint256 public limitTireOne = (30*10**6)*(10**token.decimals());
+    uint256 public limitTireTwo = (50*10**6)*(10**token.decimals());
+    uint256 public limitTireThree = (20*10**6)*(10**token.decimals());
     uint256 public icoStartTime;
     uint256 public icoEndTime;
     bool public icoCompleted;
     uint256 public fundingGoals;
-    ICOToken public token;
+    
     uint256 public tokenRate;
-    address public owner;
+    address payable owner;
     uint256 public tokenRaised;
     uint256 public ethRaised;
     
@@ -31,7 +33,7 @@ contract crowdSale{
         _endIco!=0 &&
         _tokenRate!=0 &&
         _fundingGoals!=0 &&
-        _tokenaddress !=0 &&
+        _tokenaddress !=address(0) &&
         _startIco<_endIco
             );
             
@@ -40,7 +42,7 @@ contract crowdSale{
         fundingGoals=_fundingGoals;
         token=ICOToken(_tokenaddress);  //here we created an instance of that token in our Crowdsale contract with the address of the token that we’ll be using.
         tokenRate=_tokenRate; 
-        owner= msg.sender;
+        owner= payable(msg.sender);
     }
     
     
@@ -55,7 +57,7 @@ contract crowdSale{
         require(amount > 0 && tokensThisTier > 0 && _rate > 0);
         require(tierSelected >= 1 && tierSelected <= 3);
 
-        uint weiThisTier = tokensThisTier.sub(tokensRaised).div(_rate);
+        uint weiThisTier = tokensThisTier.sub(tokenRaised).div(_rate);
         uint weiNextTier = amount.sub(weiThisTier);
         uint tokensNextTier = 0;
         bool returnTokens = false;
@@ -66,10 +68,10 @@ contract crowdSale{
         else
             returnTokens = true;
 
-        totalTokens = tokensThisTier.sub(tokensRaised).add(tokensNextTier);
+        totalTokens = tokensThisTier.sub(tokenRaised).add(tokensNextTier);
 
         // Do the transfer at the end
-        if(returnTokens) msg.sender.transfer(weiNextTier);
+        if(returnTokens) payable(msg.sender).transfer(weiNextTier);
    }
 
     function calculateTokensTier(uint256 weiPaid, uint256 tierSelected)
@@ -104,17 +106,17 @@ contract crowdSale{
     uint256 etherUsed = msg.value;
     
     if (tokenRaised < limitTireOne){
-        tokensToBuy= etherUsed * (10** tokens.decimals())/1 ether * rate_1;
+        tokensToBuy= etherUsed * (10** token.decimals())/1 ether * rate_1;
         if (tokenRaised+tokensToBuy>limitTireOne){
             tokensToBuy= calculateExcessTokens(etherUsed,limitTireOne,1,rate_1);
         }
     } else if (tokenRaised>limitTireOne && tokenRaised<limitTireTwo ){
-        tokensToBuy = etherUsed*(10**tokens.decimals())/1 ether * rate_2;
+        tokensToBuy = etherUsed*(10**token.decimals())/1 ether * rate_2;
         if (tokenRaised+tokensToBuy>limitTireTwo){
             tokensToBuy= calculateExcessTokens(etherUsed, limitTireOne, 2, rate_2);
         }
     }else if(tokenRaised>=limitTireTwo){
-        tokensToBuy= etherUsed*(10**tokens.decimals)/1 ether * rate_3;
+        tokensToBuy= etherUsed*(10**token.decimals())/1 ether * rate_3;
     }
     
  
@@ -125,7 +127,7 @@ contract crowdSale{
         
         uint256 exceedingEther = exceedingTokens*1 /token.decimals() / tokenRate;
         
-        msg.sender.transfer(exceedingEther);
+        payable(msg.sender).transfer(exceedingEther);
         tokensToBuy -= exceedingTokens;
         etherUsed -= exceedingEther;
     }
@@ -137,13 +139,18 @@ contract crowdSale{
     
     
     }
+     modifier onlyOwner{
+       require(msg.sender==owner);
+       _;
+       
+   }
     
 
 
      
     function extractEther () public whenIcoCompleted onlyOwner{
         
-        owner.transfer(this).balance;   //it will tranfer the eth raised in the crowd sale to the owner of the smart contract
+        owner.transfer(address(this).balance);   //it will tranfer the eth raised in the crowd sale to the owner of the smart contract
     }
     
     
